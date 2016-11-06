@@ -37,6 +37,11 @@
  * Miscellanious defines
  ****************************************************************************/
 
+/* HDAC quirks */
+#define HDAC_QUIRK_64BIT	(1 << 0)
+#define HDAC_QUIRK_DMAPOS	(1 << 1)
+#define HDAC_QUIRK_MSI		(1 << 2)
+
 /* Controller models */
 #define HDA_MODEL_CONSTRUCT(vendor, model)	\
 		(((uint32_t)(model) << 16) | ((vendor##_VENDORID) & 0xffff))
@@ -817,7 +822,5 @@ HDA_ACCESSOR(subsystem_id,	SUBSYSTEM_ID,	uint32_t);
 HDA_ACCESSOR(node_type,		NODE_TYPE,	uint8_t);
 HDA_ACCESSOR(dma_nocache,	DMA_NOCACHE,	uint8_t);
 HDA_ACCESSOR(stripes_mask,	STRIPES_MASK,	uint8_t);
-
-#define PCIS_MULTIMEDIA_HDA    0x03
 
 #endif

@@ -155,3 +155,11 @@ METHOD void write_4 {
     bus_size_t		offs;
     uint32_t		val;
 };
+
+METHOD int irq_setup {
+    device_t		dev;
+};
+
+METHOD void irq_teardown {
+    device_t		dev;
+};
