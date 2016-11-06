@@ -28,6 +28,10 @@
 
 INTERFACE hdac;
 
+HEADER {
+    struct hdac_mem;
+};
+
 METHOD struct mtx * get_mtx {
     device_t    dev;
     device_t    child;
@@ -113,3 +117,41 @@ METHOD void pindump {
     device_t    dev;
 };
 
+METHOD uint8_t read_1 {
+    device_t		dev;
+    struct hdac_mem	*mem;
+    bus_size_t		offs;
+};
+
+METHOD uint16_t read_2 {
+    device_t		dev;
+    struct hdac_mem	*mem;
+    bus_size_t		offs;
+};
+
+METHOD uint32_t read_4 {
+    device_t		dev;
+    struct hdac_mem	*mem;
+    bus_size_t		offs;
+};
+
+METHOD void write_1 {
+    device_t		dev;
+    struct hdac_mem	*mem;
+    bus_size_t		offs;
+    uint8_t		val;
+};
+
+METHOD void write_2 {
+    device_t		dev;
+    struct hdac_mem	*mem;
+    bus_size_t		offs;
+    uint16_t		val;
+};
+
+METHOD void write_4 {
+    device_t		dev;
+    struct hdac_mem	*mem;
+    bus_size_t		offs;
+    uint32_t		val;
+};
