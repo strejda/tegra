@@ -40,19 +40,6 @@
 /****************************************************************************
  * Helper Macros
  ****************************************************************************/
-#define HDAC_READ_1(mem, offset)					\
-	bus_space_read_1((mem)->mem_tag, (mem)->mem_handle, (offset))
-#define HDAC_READ_2(mem, offset)					\
-	bus_space_read_2((mem)->mem_tag, (mem)->mem_handle, (offset))
-#define HDAC_READ_4(mem, offset)					\
-	bus_space_read_4((mem)->mem_tag, (mem)->mem_handle, (offset))
-#define HDAC_WRITE_1(mem, offset, value)				\
-	bus_space_write_1((mem)->mem_tag, (mem)->mem_handle, (offset), (value))
-#define HDAC_WRITE_2(mem, offset, value)				\
-	bus_space_write_2((mem)->mem_tag, (mem)->mem_handle, (offset), (value))
-#define HDAC_WRITE_4(mem, offset, value)				\
-	bus_space_write_4((mem)->mem_tag, (mem)->mem_handle, (offset), (value))
-
 #define HDAC_ISDCTL(sc, n)	(_HDAC_ISDCTL((n), (sc)->num_iss, (sc)->num_oss))
 #define HDAC_ISDSTS(sc, n)	(_HDAC_ISDSTS((n), (sc)->num_iss, (sc)->num_oss))
 #define HDAC_ISDPICB(sc, n)	(_HDAC_ISDPICB((n), (sc)->num_iss, (sc)->num_oss))

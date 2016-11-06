@@ -332,12 +332,12 @@ hdac_one_intr(struct hdac_softc *sc, uint32_t intsts)
 		 */
 
 		/* Get as many responses that we can */
-		rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
+		rirbsts = HDAC_READ_1(sc->dev, &sc->mem, HDAC_RIRBSTS);
 		while (rirbsts & HDAC_RIRBSTS_RINTFL) {
-			HDAC_WRITE_1(&sc->mem,
+			HDAC_WRITE_1(sc->dev, &sc->mem,
 			    HDAC_RIRBSTS, HDAC_RIRBSTS_RINTFL);
 			hdac_rirb_flush(sc);
-			rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
+			rirbsts = HDAC_READ_1(sc->dev, &sc->mem, HDAC_RIRBSTS);
 		}
 		if (sc->unsolq_rp != sc->unsolq_wp)
 			taskqueue_enqueue(taskqueue_thread, &sc->unsolq_task);
@@ -347,8 +347,9 @@ hdac_one_intr(struct hdac_softc *sc, uint32_t intsts)
 		for (i = 0; i < sc->num_ss; i++) {
 			if ((intsts & (1 << i)) == 0)
 				continue;
-			HDAC_WRITE_1(&sc->mem, (i << 5) + HDAC_SDSTS,
-			    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS);
+			HDAC_WRITE_1(sc->dev, &sc->mem, (i << 5) + HDAC_SDSTS,
+			    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE |
+			    HDAC_SDSTS_BCIS );
 			if ((dev = sc->streams[i].dev) != NULL) {
 				HDAC_STREAM_INTR(dev,
 				    sc->streams[i].dir, sc->streams[i].stream);
@@ -380,12 +381,12 @@ hdac_intr_handler(void *context)
 	 * re-examine GIS then we can leave it set and never get an interrupt
 	 * again.
 	 */
-	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
+	intsts = HDAC_READ_4(sc->dev, &sc->mem, HDAC_INTSTS);
 	while ((intsts & HDAC_INTSTS_GIS) != 0) {
 		hdac_lock(sc);
 		hdac_one_intr(sc, intsts);
 		hdac_unlock(sc);
-		intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
+		intsts = HDAC_READ_4(sc->dev, &sc->mem, HDAC_INTSTS);
 	}
 }
 
@@ -423,33 +424,33 @@ hdac_reset(struct hdac_softc *sc, bool wakeup)
 	 * Stop all Streams DMA engine
 	 */
 	for (i = 0; i < sc->num_iss; i++)
-		HDAC_WRITE_4(&sc->mem, HDAC_ISDCTL(sc, i), 0x0);
+		HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_ISDCTL(sc, i), 0x0);
 	for (i = 0; i < sc->num_oss; i++)
-		HDAC_WRITE_4(&sc->mem, HDAC_OSDCTL(sc, i), 0x0);
+		HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_OSDCTL(sc, i), 0x0);
 	for (i = 0; i < sc->num_bss; i++)
-		HDAC_WRITE_4(&sc->mem, HDAC_BSDCTL(sc, i), 0x0);
+		HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_BSDCTL(sc, i), 0x0);
 
 	/*
 	 * Stop Control DMA engines.
 	 */
-	HDAC_WRITE_1(&sc->mem, HDAC_CORBCTL, 0x0);
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, 0x0);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_CORBCTL, 0x0);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_RIRBCTL, 0x0);
 
 	/*
 	 * Reset DMA position buffer.
 	 */
-	HDAC_WRITE_4(&sc->mem, HDAC_DPIBLBASE, 0x0);
-	HDAC_WRITE_4(&sc->mem, HDAC_DPIBUBASE, 0x0);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_DPIBLBASE, 0x0);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_DPIBUBASE, 0x0);
 
 	/*
 	 * Reset the controller. The reset must remain asserted for
 	 * a minimum of 100us.
 	 */
-	gctl = HDAC_READ_4(&sc->mem, HDAC_GCTL);
-	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, gctl & ~HDAC_GCTL_CRST);
+	gctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_GCTL);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_GCTL, gctl & ~HDAC_GCTL_CRST);
 	count = 10000;
 	do {
-		gctl = HDAC_READ_4(&sc->mem, HDAC_GCTL);
+		gctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_GCTL);
 		if (!(gctl & HDAC_GCTL_CRST))
 			break;
 		DELAY(10);
@@ -464,11 +465,11 @@ hdac_reset(struct hdac_softc *sc, bool wakeup)
 		return (0);
 
 	DELAY(100);
-	gctl = HDAC_READ_4(&sc->mem, HDAC_GCTL);
-	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, gctl | HDAC_GCTL_CRST);
+	gctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_GCTL);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_GCTL, gctl | HDAC_GCTL_CRST);
 	count = 10000;
 	do {
-		gctl = HDAC_READ_4(&sc->mem, HDAC_GCTL);
+		gctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_GCTL);
 		if (gctl & HDAC_GCTL_CRST)
 			break;
 		DELAY(10);
@@ -503,7 +504,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	uint16_t gcap;
 	uint8_t corbsize, rirbsize;
 
-	gcap = HDAC_READ_2(&sc->mem, HDAC_GCAP);
+	gcap = HDAC_READ_2(sc->dev, &sc->mem, HDAC_GCAP);
 	sc->num_iss = HDAC_GCAP_ISS(gcap);
 	sc->num_oss = HDAC_GCAP_OSS(gcap);
 	sc->num_bss = HDAC_GCAP_BSS(gcap);
@@ -515,7 +516,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	else if (sc->quirks_off & HDAC_QUIRK_64BIT)
 		sc->support_64bit = 0;
 
-	corbsize = HDAC_READ_1(&sc->mem, HDAC_CORBSIZE);
+	corbsize = HDAC_READ_1(sc->dev, &sc->mem, HDAC_CORBSIZE);
 	if ((corbsize & HDAC_CORBSIZE_CORBSZCAP_256) ==
 	    HDAC_CORBSIZE_CORBSZCAP_256)
 		sc->corb_size = 256;
@@ -531,7 +532,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 		return (ENXIO);
 	}
 
-	rirbsize = HDAC_READ_1(&sc->mem, HDAC_RIRBSIZE);
+	rirbsize = HDAC_READ_1(sc->dev, &sc->mem, HDAC_RIRBSIZE);
 	if ((rirbsize & HDAC_RIRBSIZE_RIRBSZCAP_256) ==
 	    HDAC_RIRBSIZE_RIRBSZCAP_256)
 		sc->rirb_size = 256;
@@ -820,28 +821,29 @@ hdac_corb_init(struct hdac_softc *sc)
 	default:
 		panic("%s: Invalid CORB size (%x)\n", __func__, sc->corb_size);
 	}
-	HDAC_WRITE_1(&sc->mem, HDAC_CORBSIZE, corbsize);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_CORBSIZE, corbsize);
 
 	/* Setup the CORB Address in the hdac */
 	corbpaddr = (uint64_t)sc->corb_dma.dma_paddr;
-	HDAC_WRITE_4(&sc->mem, HDAC_CORBLBASE, (uint32_t)corbpaddr);
-	HDAC_WRITE_4(&sc->mem, HDAC_CORBUBASE, (uint32_t)(corbpaddr >> 32));
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_CORBLBASE, (uint32_t)corbpaddr);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_CORBUBASE,
+	    (uint32_t)(corbpaddr >> 32));
 
 	/* Set the WP and RP */
 	sc->corb_wp = 0;
-	HDAC_WRITE_2(&sc->mem, HDAC_CORBWP, sc->corb_wp);
-	HDAC_WRITE_2(&sc->mem, HDAC_CORBRP, HDAC_CORBRP_CORBRPRST);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_CORBWP, sc->corb_wp);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_CORBRP, HDAC_CORBRP_CORBRPRST);
 	/*
 	 * The HDA specification indicates that the CORBRPRST bit will always
 	 * read as zero. Unfortunately, it seems that at least the 82801G
 	 * doesn't reset the bit to zero, which stalls the corb engine.
 	 * manually reset the bit to zero before continuing.
 	 */
-	HDAC_WRITE_2(&sc->mem, HDAC_CORBRP, 0x0);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_CORBRP, 0x0);
 
 	/* Enable CORB error reporting */
 #if 0
-	HDAC_WRITE_1(&sc->mem, HDAC_CORBCTL, HDAC_CORBCTL_CMEIE);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_CORBCTL, HDAC_CORBCTL_CMEIE);
 #endif
 }
 
@@ -871,26 +873,27 @@ hdac_rirb_init(struct hdac_softc *sc)
 	default:
 		panic("%s: Invalid RIRB size (%x)\n", __func__, sc->rirb_size);
 	}
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBSIZE, rirbsize);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_RIRBSIZE, rirbsize);
 
 	/* Setup the RIRB Address in the hdac */
 	rirbpaddr = (uint64_t)sc->rirb_dma.dma_paddr;
-	HDAC_WRITE_4(&sc->mem, HDAC_RIRBLBASE, (uint32_t)rirbpaddr);
-	HDAC_WRITE_4(&sc->mem, HDAC_RIRBUBASE, (uint32_t)(rirbpaddr >> 32));
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_RIRBLBASE, (uint32_t)rirbpaddr);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_RIRBUBASE,
+	    (uint32_t)(rirbpaddr >> 32));
 
 	/* Setup the WP and RP */
 	sc->rirb_rp = 0;
-	HDAC_WRITE_2(&sc->mem, HDAC_RIRBWP, HDAC_RIRBWP_RIRBWPRST);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_RIRBWP, HDAC_RIRBWP_RIRBWPRST);
 
 	/* Setup the interrupt threshold */
-	HDAC_WRITE_2(&sc->mem, HDAC_RINTCNT, sc->rirb_size / 2);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_RINTCNT, sc->rirb_size / 2);
 
 	/* Enable Overrun and response received reporting */
 #if 0
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL,
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_RIRBCTL,
 	    HDAC_RIRBCTL_RIRBOIC | HDAC_RIRBCTL_RINTCTL);
 #else
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, HDAC_RIRBCTL_RINTCTL);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_RIRBCTL, HDAC_RIRBCTL_RINTCTL);
 #endif
 
 	/*
@@ -913,9 +916,9 @@ hdac_corb_start(struct hdac_softc *sc)
 {
 	uint32_t corbctl;
 
-	corbctl = HDAC_READ_1(&sc->mem, HDAC_CORBCTL);
+	corbctl = HDAC_READ_1(sc->dev, &sc->mem, HDAC_CORBCTL);
 	corbctl |= HDAC_CORBCTL_CORBRUN;
-	HDAC_WRITE_1(&sc->mem, HDAC_CORBCTL, corbctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_CORBCTL, corbctl);
 }
 
 /****************************************************************************
@@ -928,9 +931,9 @@ hdac_rirb_start(struct hdac_softc *sc)
 {
 	uint32_t rirbctl;
 
-	rirbctl = HDAC_READ_1(&sc->mem, HDAC_RIRBCTL);
+	rirbctl = HDAC_READ_1(sc->dev, &sc->mem, HDAC_RIRBCTL);
 	rirbctl |= HDAC_RIRBCTL_RIRBDMAEN;
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, rirbctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, HDAC_RIRBCTL, rirbctl);
 }
 
 static int
@@ -943,7 +946,7 @@ hdac_rirb_flush(struct hdac_softc *sc)
 	int ret;
 
 	rirb_base = (struct hdac_rirb *)sc->rirb_dma.dma_vaddr;
-	rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
+	rirbwp = HDAC_READ_1(sc->dev, &sc->mem, HDAC_RIRBWP);
 	bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
 
@@ -1026,7 +1029,7 @@ hdac_send_command(struct hdac_softc *sc, nid_t cad, uint32_t verb)
 	corb[sc->corb_wp] = htole32(verb);
 	bus_dmamap_sync(sc->corb_dma.dma_tag,
 	    sc->corb_dma.dma_map, BUS_DMASYNC_POSTWRITE);
-	HDAC_WRITE_2(&sc->mem, HDAC_CORBWP, sc->corb_wp);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_CORBWP, sc->corb_wp);
 
 	timeout = 10000;
 	do {
@@ -1297,8 +1300,9 @@ hdac_attach(device_t dev)
 		} else {
 			uint64_t addr = sc->pos_dma.dma_paddr;
 
-			HDAC_WRITE_4(&sc->mem, HDAC_DPIBUBASE, addr >> 32);
-			HDAC_WRITE_4(&sc->mem, HDAC_DPIBLBASE,
+			HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_DPIBUBASE,
+			    addr >> 32);
+			HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_DPIBLBASE,
 			    (addr & HDAC_DPLBASE_DPLBASE_MASK) |
 			    HDAC_DPLBASE_DPLBASE_DMAPBE);
 		}
@@ -1489,13 +1493,13 @@ sysctl_hdac_polling(SYSCTL_HANDLER_ARGS)
 			callout_drain(&sc->poll_callout);
 			hdac_lock(sc);
 			sc->polling = 0;
-			ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
+			ctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_INTCTL);
 			ctl |= HDAC_INTCTL_GIE;
-			HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+			HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_INTCTL, ctl);
 		} else {
-			ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
+			ctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_INTCTL);
 			ctl &= ~HDAC_INTCTL_GIE;
-			HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+			HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_INTCTL, ctl);
 			sc->polling = 1;
 			hdac_poll_reinit(sc);
 		}
@@ -1541,23 +1545,23 @@ hdac_attach2(void *arg)
 	 * NB: this needs to be done before the interrupt is enabled as
 	 * the handler does not expect this interrupt source.
 	 */
-	HDAC_WRITE_2(&sc->mem, HDAC_WAKEEN, 0);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_WAKEEN, 0);
 
 	/*
 	 * Read and clear post-reset SDI wake status.
 	 * Each set bit corresponds to a codec that came out of reset.
 	 */
-	statests = HDAC_READ_2(&sc->mem, HDAC_STATESTS);
-	HDAC_WRITE_2(&sc->mem, HDAC_STATESTS, statests);
+	statests = HDAC_READ_2(sc->dev, &sc->mem, HDAC_STATESTS);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_STATESTS, statests);
 
 	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev,
 		    "Enabling controller interrupt...\n");
 	);
-	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, HDAC_READ_4(&sc->mem, HDAC_GCTL) |
-	    HDAC_GCTL_UNSOL);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_GCTL,
+	    HDAC_READ_4(sc->dev, &sc->mem, HDAC_GCTL) | HDAC_GCTL_UNSOL);
 	if (sc->polling == 0) {
-		HDAC_WRITE_4(&sc->mem, HDAC_INTCTL,
+		HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_INTCTL,
 		    HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
 	}
 	DELAY(1000);
@@ -1688,15 +1692,17 @@ hdac_resume(device_t dev)
 	 * NB: this needs to be done before the interrupt is enabled as
 	 * the handler does not expect this interrupt source.
 	 */
-	HDAC_WRITE_2(&sc->mem, HDAC_WAKEEN, 0);
-	HDAC_WRITE_2(&sc->mem, HDAC_STATESTS, HDAC_STATESTS_SDIWAKE_MASK);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_WAKEEN, 0);
+	HDAC_WRITE_2(sc->dev, &sc->mem, HDAC_STATESTS,
+	    HDAC_STATESTS_SDIWAKE_MASK);
 
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Enabling controller interrupt...\n");
 	);
-	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, HDAC_READ_4(&sc->mem, HDAC_GCTL) |
-	    HDAC_GCTL_UNSOL);
-	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
+	HDAC_WRITE_4(sc->dev, &sc->mem,HDAC_GCTL,
+	    HDAC_READ_4(sc->dev, &sc->mem, HDAC_GCTL) | HDAC_GCTL_UNSOL);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_INTCTL,
+	    HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
 	DELAY(1000);
 	hdac_poll_reinit(sc);
 	hdac_unlock(sc);
@@ -1992,13 +1998,14 @@ hdac_stream_start(device_t dev, device_t child, int dir, int stream,
 	    sc->streams[ss].bdl.dma_map, BUS_DMASYNC_PREWRITE);
 
 	off = ss << 5;
-	HDAC_WRITE_4(&sc->mem, off + HDAC_SDCBL, blksz * blkcnt);
-	HDAC_WRITE_2(&sc->mem, off + HDAC_SDLVI, blkcnt - 1);
+	HDAC_WRITE_4(sc->dev, &sc->mem, off + HDAC_SDCBL, blksz * blkcnt);
+	HDAC_WRITE_2(sc->dev, &sc->mem, off + HDAC_SDLVI, blkcnt - 1);
 	addr = sc->streams[ss].bdl.dma_paddr;
-	HDAC_WRITE_4(&sc->mem, off + HDAC_SDBDPL, (uint32_t)addr);
-	HDAC_WRITE_4(&sc->mem, off + HDAC_SDBDPU, (uint32_t)(addr >> 32));
+	HDAC_WRITE_4(sc->dev, &sc->mem, off + HDAC_SDBDPL, (uint32_t)addr);
+	HDAC_WRITE_4(sc->dev, &sc->mem, off + HDAC_SDBDPU,
+	    (uint32_t)(addr >> 32));
 
-	ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL2);
+	ctl = HDAC_READ_1(sc->dev, &sc->mem, off + HDAC_SDCTL2);
 	if (dir)
 		ctl |= HDAC_SDCTL2_DIR;
 	else
@@ -2007,20 +2014,21 @@ hdac_stream_start(device_t dev, device_t child, int dir, int stream,
 	ctl |= stream << HDAC_SDCTL2_STRM_SHIFT;
 	ctl &= ~HDAC_SDCTL2_STRIPE_MASK;
 	ctl |= sc->streams[ss].stripe << HDAC_SDCTL2_STRIPE_SHIFT;
-	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL2, ctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, off + HDAC_SDCTL2, ctl);
 
-	HDAC_WRITE_2(&sc->mem, off + HDAC_SDFMT, sc->streams[ss].format);
+	HDAC_WRITE_2(sc->dev, &sc->mem, off + HDAC_SDFMT,
+	    sc->streams[ss].format);
 
-	ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
+	ctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_INTCTL);
 	ctl |= 1 << ss;
-	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_INTCTL, ctl);
 
-	HDAC_WRITE_1(&sc->mem, off + HDAC_SDSTS,
+	HDAC_WRITE_1(sc->dev, &sc->mem, off + HDAC_SDSTS,
 	    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS);
-	ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
+	ctl = HDAC_READ_1(sc->dev, &sc->mem, off + HDAC_SDCTL0);
 	ctl |= HDAC_SDCTL_IOCE | HDAC_SDCTL_FEIE | HDAC_SDCTL_DEIE |
 	    HDAC_SDCTL_RUN;
-	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL0, ctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, off + HDAC_SDCTL0, ctl);
 
 	sc->streams[ss].blksz = blksz;
 	sc->streams[ss].running = 1;
@@ -2043,14 +2051,14 @@ hdac_stream_stop(device_t dev, device_t child, int dir, int stream)
 	    sc->streams[ss].bdl.dma_map, BUS_DMASYNC_POSTWRITE);
 
 	off = ss << 5;
-	ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
+	ctl = HDAC_READ_1(sc->dev, &sc->mem, off + HDAC_SDCTL0);
 	ctl &= ~(HDAC_SDCTL_IOCE | HDAC_SDCTL_FEIE | HDAC_SDCTL_DEIE |
 	    HDAC_SDCTL_RUN);
-	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL0, ctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, off + HDAC_SDCTL0, ctl);
 
-	ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
+	ctl = HDAC_READ_4(sc->dev, &sc->mem, HDAC_INTCTL);
 	ctl &= ~(1 << ss);
-	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+	HDAC_WRITE_4(sc->dev, &sc->mem, HDAC_INTCTL, ctl);
 
 	sc->streams[ss].running = 0;
 	hdac_poll_reinit(sc);
@@ -2070,11 +2078,11 @@ hdac_stream_reset(device_t dev, device_t child, int dir, int stream)
 	    ("Reset for not allocated stream (%d/%d)\n", dir, stream));
 
 	off = ss << 5;
-	ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
+	ctl = HDAC_READ_1(sc->dev, &sc->mem, off + HDAC_SDCTL0);
 	ctl |= HDAC_SDCTL_SRST;
-	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL0, ctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, off + HDAC_SDCTL0, ctl);
 	do {
-		ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
+		ctl = HDAC_READ_1(sc->dev, &sc->mem, off + HDAC_SDCTL0);
 		if (ctl & HDAC_SDCTL_SRST)
 			break;
 		DELAY(10);
@@ -2082,10 +2090,10 @@ hdac_stream_reset(device_t dev, device_t child, int dir, int stream)
 	if (!(ctl & HDAC_SDCTL_SRST))
 		device_printf(dev, "Reset setting timeout\n");
 	ctl &= ~HDAC_SDCTL_SRST;
-	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL0, ctl);
+	HDAC_WRITE_1(sc->dev, &sc->mem, off + HDAC_SDCTL0, ctl);
 	to = timeout;
 	do {
-		ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
+		ctl = HDAC_READ_1(sc->dev, &sc->mem, off + HDAC_SDCTL0);
 		if (!(ctl & HDAC_SDCTL_SRST))
 			break;
 		DELAY(10);
@@ -2105,7 +2113,7 @@ hdac_stream_getptr(device_t dev, device_t child, int dir, int stream)
 	    ("Reset for not allocated stream (%d/%d)\n", dir, stream));
 
 	off = ss << 5;
-	return (HDAC_READ_4(&sc->mem, off + HDAC_SDLPIB));
+	return (HDAC_READ_4(sc->dev, &sc->mem, off + HDAC_SDLPIB));
 }
 
 static int
@@ -2125,6 +2133,48 @@ hdac_unsol_free(device_t dev, device_t child, int tag)
 
 	sc->unsol_registered--;
 	hdac_poll_reinit(sc);
+}
+
+static uint8_t
+hdac_read_1(device_t dev, struct hdac_mem *mem, bus_size_t offs)
+{
+
+	return (bus_space_read_1(mem->mem_tag, mem->mem_handle, offs));
+}
+
+static uint16_t
+hdac_read_2(device_t dev, struct hdac_mem *mem, bus_size_t offs)
+{
+
+	return (bus_space_read_2(mem->mem_tag, mem->mem_handle, offs));
+}
+
+static uint32_t
+hdac_read_4(device_t dev, struct hdac_mem *mem, bus_size_t offs)
+{
+
+	return (bus_space_read_4(mem->mem_tag, mem->mem_handle, offs));
+}
+
+static void
+hdac_write_1(device_t dev, struct hdac_mem *mem, bus_size_t offs, uint8_t val)
+{
+
+	return (bus_space_write_1(mem->mem_tag, mem->mem_handle, offs, val));
+}
+
+static void
+hdac_write_2(device_t dev, struct hdac_mem *mem, bus_size_t offs, uint16_t val)
+{
+
+	return (bus_space_write_2(mem->mem_tag, mem->mem_handle, offs, val));
+}
+
+static void
+hdac_write_4(device_t dev, struct hdac_mem *mem, bus_size_t offs, uint32_t val)
+{
+
+	return (bus_space_write_4(mem->mem_tag, mem->mem_handle, offs, val));
 }
 
 static device_method_t hdac_methods[] = {
@@ -2150,6 +2200,13 @@ static device_method_t hdac_methods[] = {
 	DEVMETHOD(hdac_stream_getptr,	hdac_stream_getptr),
 	DEVMETHOD(hdac_unsol_alloc,	hdac_unsol_alloc),
 	DEVMETHOD(hdac_unsol_free,	hdac_unsol_free),
+	DEVMETHOD(hdac_read_1,		hdac_read_1),
+	DEVMETHOD(hdac_read_2,		hdac_read_2),
+	DEVMETHOD(hdac_read_4,		hdac_read_4),
+	DEVMETHOD(hdac_write_1,		hdac_write_1),
+	DEVMETHOD(hdac_write_2,		hdac_write_2),
+	DEVMETHOD(hdac_write_4,		hdac_write_4),
+
 	DEVMETHOD_END
 };
 
