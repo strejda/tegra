@@ -127,8 +127,8 @@ device		kbdmux
 device		drm2
 
 # Sound
-#device		sound
-#device		snd_hda
+device		sound
+device		snd_hda
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

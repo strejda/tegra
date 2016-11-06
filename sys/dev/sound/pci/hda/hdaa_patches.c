@@ -823,6 +823,68 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 	}
 }
 
+/* Audio Function Group node */
+#define	NVIDIA_AFG_NID				0x01
+
+#define	NVIDIA_VERB_GET_SCRATCH0		0xfa6
+#define	NVIDIA_SCRATCH0_INT				(1U << 31)
+#define	NVIDIA_VERB_SET_SCRATCH0_BYTE0		0xfa7
+#define	NVIDIA_VERB_SET_SCRATCH0_BYTE1		0xfa8
+#define	NVIDIA_VERB_SET_SCRATCH0_BYTE2		0xfa9
+#define	NVIDIA_VERB_SET_SCRATCH0_BYTE3		0xfaa
+
+#define	NVIDIA_VERB_GET_SCRATCH1		0xfab
+#define	NVIDIA_SCRATCH1_INT				(1U << 31)
+#define	NVIDIA_VERB_SET_SCRATCH1_BYTE0		0xfac
+#define	NVIDIA_VERB_SET_SCRATCH1_BYTE1		0xfad
+#define	NVIDIA_VERB_SET_SCRATCH1_BYTE2		0xfae
+#define	NVIDIA_VERB_SET_SCRATCH1_BYTE3		0xfaf
+
+
+#define NVIDIA_CMD_GET_SCRATCH0(cad)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_GET_SCRATCH0, 0x0))
+#define NVIDIA_CMD_SET_SCRATCH0_BYTE0(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH0_BYTE0, (v)))
+#define NVIDIA_CMD_SET_SCRATCH0_BYTE1(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH0_BYTE1, (v)))
+#define NVIDIA_CMD_SET_SCRATCH0_BYTE2(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH0_BYTE2, (v)))
+#define NVIDIA_CMD_SET_SCRATCH0_BYTE3(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH0_BYTE3, (v)))
+
+#define NVIDIA_CMD_GET_SCRATCH1(cad)				\
+    (HDA_CMD_12BIT((cad), (NVIDIA_AFG_NID), NVIDIA_VERB_GET_SCRATCH1, 0x0))
+#define NVIDIA_CMD_SET_SCRATCH1_BYTE0(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH1_BYTE0, (v)))
+#define NVIDIA_CMD_SET_SCRATCH1_BYTE1(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH1_BYTE1, (v)))
+#define NVIDIA_CMD_SET_SCRATCH1_BYTE2(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH1_BYTE2, (v)))
+#define NVIDIA_CMD_SET_SCRATCH1_BYTE3(cad, v)				\
+    (HDA_CMD_12BIT((cad), NVIDIA_AFG_NID, NVIDIA_VERB_SET_SCRATCH1_BYTE3, (v)))
+
+static void
+tegra_hdmi_send_format(struct hdaa_chan *ch, int nchans, int rate)
+{
+	device_t dev = ch->devinfo->dev;
+	uint32_t val;
+
+	/* Toggle interrupt bit */
+	val = hda_command(dev, NVIDIA_CMD_GET_SCRATCH0(0)) &
+	    NVIDIA_SCRATCH0_INT;
+	val ^= NVIDIA_SCRATCH0_INT;
+	if (nchans != 0 && rate != 0) {
+		/* XXX Move this to any header */
+		/* !!! Keep in sync with nvidia_hdmi.c !!! */
+		val |= rate & 0x00FFFFFF; 	/* Up to 16 MHz */
+		val |= (nchans & 0x0f) << 24;	/* Up to 16 channels */
+		val |= 1 << 30;			/* Enable */
+	}
+	hda_command(dev, NVIDIA_CMD_SET_SCRATCH0_BYTE0(0, (val >>  0) & 0xFF));
+	hda_command(dev, NVIDIA_CMD_SET_SCRATCH0_BYTE1(0, (val >>  8) & 0xFF));
+	hda_command(dev, NVIDIA_CMD_SET_SCRATCH0_BYTE2(0, (val >> 16) & 0xFF));
+	hda_command(dev, NVIDIA_CMD_SET_SCRATCH0_BYTE3(0, (val >> 24) & 0xFF));
+}
 
 int
 hdaa_patch_channel_start_stop(struct hdaa_chan *ch, bool start)
@@ -833,7 +895,14 @@ hdaa_patch_channel_start_stop(struct hdaa_chan *ch, bool start)
 	devinfo = ch->devinfo;
 
 	id = hdaa_codec_id(devinfo);
-	/* The id will be use later by Nvidia Tegra HDA */
+
+	if (id == HDA_CODEC_NVIDIATEGRA124) {
+		if (start)
+			tegra_hdmi_send_format(ch, AFMT_CHANNEL(ch->fmt),
+			    ch->spd);
+		else
+			tegra_hdmi_send_format(ch, 0, 0);
+	}
 
 	return (0);
 }
