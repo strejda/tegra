@@ -213,4 +213,10 @@ struct hdac_softc {
 	} codecs[HDAC_CODEC_MAX];
 };
 
+/* Exported functions for subclasses */
+DECLARE_CLASS(hdac_base_driver);
+int hdac_attach_subclass(device_t dev);
+int hdac_detach_subclass(device_t dev);
+int hdac_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
+
 #endif
