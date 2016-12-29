@@ -273,5 +273,7 @@ uint32_t		hdaa_gpio_patch(uint32_t gpio, const char *str);
 
 void			hdaa_patch(struct hdaa_devinfo *devinfo);
 void			hdaa_patch_direct(struct hdaa_devinfo *devinfo);
+int 			hdaa_patch_channel_start_stop(struct hdaa_chan *ch,
+    bool start);
 
 #endif

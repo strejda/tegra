@@ -822,3 +822,18 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		}
 	}
 }
+
+
+int
+hdaa_patch_channel_start_stop(struct hdaa_chan *ch, bool start)
+{
+	struct hdaa_devinfo *devinfo;
+	uint32_t id;
+
+	devinfo = ch->devinfo;
+
+	id = hdaa_codec_id(devinfo);
+	/* The id will be use later by Nvidia Tegra HDA */
+
+	return (0);
+}
