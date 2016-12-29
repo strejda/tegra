@@ -70,7 +70,6 @@ MALLOC_DEFINE(M_HDAC, "hdac", "HDA Controller");
 /****************************************************************************
  * Function prototypes
  ****************************************************************************/
-static void	hdac_intr_handler(void *);
 static int	hdac_reset(struct hdac_softc *, bool);
 static int	hdac_get_capabilities(struct hdac_softc *);
 static void	hdac_dma_cb(void *, bus_dma_segment_t *, int, int);
@@ -211,7 +210,7 @@ hdac_one_intr(struct hdac_softc *sc, uint32_t intsts)
  *
  * Interrupt handler. Processes interrupts received from the hdac.
  ****************************************************************************/
-static void
+void
 hdac_intr_handler(void *context)
 {
 	struct hdac_softc *sc;

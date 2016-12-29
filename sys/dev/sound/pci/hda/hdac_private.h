@@ -217,6 +217,7 @@ struct hdac_softc {
 DECLARE_CLASS(hdac_base_driver);
 int hdac_attach_subclass(device_t dev);
 int hdac_detach_subclass(device_t dev);
+void hdac_intr_handler(void *context);
 int hdac_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 
 #endif
