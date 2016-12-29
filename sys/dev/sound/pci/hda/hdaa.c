@@ -2122,6 +2122,7 @@ hdaa_channel_stop(struct hdaa_chan *ch)
 	}
 	HDAC_STREAM_FREE(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid);
+	hdaa_patch_channel_start_stop(ch, false);
 }
 
 static int
@@ -2129,6 +2130,7 @@ hdaa_channel_start(struct hdaa_chan *ch)
 {
 	struct hdaa_devinfo *devinfo = ch->devinfo;
 	uint32_t fmt;
+	int rv;
 
 	fmt = hdaa_stream_format(ch);
 	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
@@ -2137,6 +2139,9 @@ hdaa_channel_start(struct hdaa_chan *ch)
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, fmt, ch->stripectl, &ch->dmapos);
 	if (ch->sid <= 0)
 		return (EBUSY);
+	rv = hdaa_patch_channel_start_stop(ch, true);
+	if (rv != 0)
+		return (rv);
 	hdaa_audio_setup(ch);
 	HDAC_STREAM_RESET(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid);
