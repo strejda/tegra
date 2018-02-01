@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+arm/broadcom/bcm2835/bcm2835_aux.c		standard
 arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc
 arm/broadcom/bcm2835/bcm2835_cpufreq.c		standard
+arm/broadcom/bcm2835/bcm2835_cprman.c		standard
 arm/broadcom/bcm2835/bcm2835_dma.c		standard
 arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
 arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
