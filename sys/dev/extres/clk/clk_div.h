@@ -33,6 +33,7 @@
 
 #define	CLK_DIV_ZERO_BASED	0x0001 /* Zero based divider. */
 #define	CLK_DIV_WITH_TABLE	0x0002 /* Table to lookup the real value */
+#define	CLK_DIV_ZERO_WRAP	0x0004 /* Zero inticates maximum divider. */
 
 struct clk_div_table {
 	uint32_t	value;
@@ -51,5 +52,11 @@ struct clk_div_def {
 };
 
 int clknode_div_register(struct clkdom *clkdom, struct clk_div_def *clkdef);
+
+void clk_div_lin_div_to_freq(uint64_t fin, uint64_t div, uint32_t div_flags,
+    int i_width, int f_width, uint64_t *fout);
+int clk_div_freq_to_lin_div(uint64_t fin, uint64_t fout, uint32_t set_flags,
+    uint32_t div_flags, int i_width, int f_width, uint32_t min_div,
+    uint32_t max_div, uint32_t *divider);
 
 #endif /*_DEV_EXTRES_CLK_DIV_H_*/

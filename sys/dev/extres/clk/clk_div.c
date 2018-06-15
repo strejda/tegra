@@ -265,3 +265,123 @@ clknode_div_register(struct clkdom *clkdom, struct clk_div_def *clkdef)
 	clknode_register(clkdom, clk);
 	return (0);
 }
+/* -------------------------- Utility functions -----------------------------*/
+
+/*
+ * This is an attempt for linear divider computation code,
+ * its expected that it will be moved to extres/clk later.
+ *
+ * Parameters:
+ * fin, fout - given input and requested output frequency
+ * i_width, f_width integer and fractional divider width
+ * min_div, max_div - minimum and maximum divider value in natural form
+ * divider - output divider value
+ *
+ * Divider is expressed as a <integer part>:<fractional part> aggregation
+ * The meaning of clknode flags is:
+ *  CLK_SET_ROUND_DOWN  -  return nearest lower frequency
+ *  CLK_SET_ROUND_UP    - return nearest higher frequency
+ *  CLK_SET_ROUND_ANY   - return nearest frequency
+ *  CLK_SET_ROUND_EXACT - exact frequency is requested
+ *
+ * Return values (preliminary):
+ *  ERANGE - cannot generate exact frequency but divisor is in HW range
+ *  EOVERFLOW - out of divisor range
+ */
+
+int
+clk_div_freq_to_lin_div(uint64_t fin, uint64_t fout,
+    uint32_t set_flags, uint32_t div_flags, int i_width, int f_width,
+    uint32_t min_div, uint32_t max_div, uint32_t *divider)
+{
+	uint32_t div, div_one;
+	uint64_t _fout;
+	int rv;
+
+	KASSERT(i_width == 0, ("Integer part of divider cannot be 0"));
+
+	div_one = 1 << f_width;
+
+	/* Scale input frequency to fractional units. */
+	fin = fin << f_width;
+
+	/* Default min/max dividers */
+	if (min_div == 0)
+		min_div =  div_one;
+
+	if (max_div == 0) {
+		max_div =  (1U << (i_width + f_width)) - 1;
+		if ((div_flags & CLK_DIV_ZERO_BASED) == 0 ||
+		    (div_flags & CLK_DIV_ZERO_WRAP))
+			max_div +=  div_one;
+	}
+
+	/* Compute fractional divider. */
+	div = (fin + fout / 2) / fout;
+
+	/* Divider should be >= min_div */
+	if (div < min_div)
+		div = min_div;
+	KASSERT(div > 0, ("Divider cannot be 0"));
+
+	/* Rounding. */
+	_fout = fin / div;
+	if (CLK_SET_ROUND(set_flags) == CLK_SET_ROUND_UP && fout < _fout)
+		div--;
+	else if (CLK_SET_ROUND(set_flags) == CLK_SET_ROUND_DOWN && fout > _fout)
+		div++;
+
+	/* Apply range clipping. */
+	div =  div < min_div ? min_div : div;
+	div =  div > max_div ? max_div : div;
+
+	/* Verify rounding contitions.*/
+	_fout = fin / div;
+	rv = 0;
+	if ((CLK_SET_ROUND(set_flags) == CLK_SET_ROUND_UP && fout > _fout) ||
+	    (CLK_SET_ROUND(set_flags) == CLK_SET_ROUND_DOWN && fout < _fout)) {
+		rv = EOVERFLOW;
+	} else if (CLK_SET_ROUND(set_flags) == CLK_SET_ROUND_EXACT &&
+	    fout != _fout) {
+		rv = ERANGE;
+	}
+
+	/* Adjust integer part by flags. */
+	if ((div_flags & CLK_DIV_ZERO_BASED) == 0) {
+		div -=  div_one;
+	} else if (div_flags & CLK_DIV_ZERO_WRAP) {
+		if ((div >> f_width)  >=  (1U << i_width))
+			div &= (1U << f_width) - 1;
+	}
+	*divider = div;
+	return (rv);
+}
+
+void
+clk_div_lin_div_to_freq(uint64_t fin, uint64_t div, uint32_t div_flags,
+    int i_width, int f_width, uint64_t *fout)
+{
+	uint32_t div_one;
+	uint32_t f_mask;
+
+	KASSERT(i_width != 0,
+	    ("Integer part of divider cannot be 0 bits wide"));
+
+	div_one = 1 << f_width;
+	f_mask = (1 << f_width) - 1;
+
+	/* Convert divider to natural form */
+	if ((div_flags & CLK_DIV_ZERO_BASED) == 0)
+		div +=  div_one;
+	else if (div_flags & CLK_DIV_ZERO_WRAP) {
+		if ((div >> f_width)  ==  0)
+			div = (1 << (i_width + i_width)) | (div & f_mask);
+	}
+
+	/* XXX Is == 0 and div_one best/valid  for fractional dividers? */
+	if (div == 0)
+		div = div_one;
+
+	fin = fin << f_width;
+	*fout = fin / div;
+}
