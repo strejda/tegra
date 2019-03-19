@@ -3,6 +3,9 @@
 
 .if ${MACHINE_ARCH} == "armv7"
 DTS=	\
+	rk3288-firefly-aioc.dts		\
+	rk3288-firefly-aioc-lvds.dts	\
+	rk3288-firefly-aioc-vga.dts	\
 	rk3288-tinker.dts		\
 	rk3288-tinker-s.dts
 .elif ${MACHINE_ARCH} == "aarch64"
