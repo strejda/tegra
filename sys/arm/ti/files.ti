@@ -23,7 +23,6 @@ arm/ti/clk/clock_common.c			standard
 arm/ti/clk/ti_clk_clkctrl.c			standard
 arm/ti/clk/ti_clk_dpll.c			standard
 arm/ti/clk/ti_clk_div.c				standard
-arm/ti/clk/ti_clk_gate.c			standard
 arm/ti/clk/ti_clk_mux.c				standard
 
 arm/ti/clk/ti_clkctrl.c				standard
