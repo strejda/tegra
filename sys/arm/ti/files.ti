@@ -5,7 +5,6 @@ arm/ti/ti_machdep.c				standard
 arm/ti/ti_prcm.c				standard
 arm/ti/ti_omap4_cm.c				standard
 arm/ti/ti_scm.c					standard
-arm/ti/ti_scm_syscon.c				standard
 arm/ti/ti_pinmux.c				standard
 dev/mbox/mbox_if.m				optional	ti_mbox
 arm/ti/ti_mbox.c				optional	ti_mbox
@@ -22,8 +21,12 @@ arm/ti/ti_sysc.c	 			standard
 
 arm/ti/clk/clock_common.c			standard
 arm/ti/clk/ti_clk_clkctrl.c			standard
-arm/ti/clk/ti_clkctrl.c				standard
 arm/ti/clk/ti_clk_dpll.c			standard
+arm/ti/clk/ti_clk_div.c				standard
+arm/ti/clk/ti_clk_gate.c			standard
+arm/ti/clk/ti_clk_mux.c				standard
+
+arm/ti/clk/ti_clkctrl.c				standard
 arm/ti/clk/ti_dpll_clock.c			standard
 arm/ti/clk/ti_mux_clock.c			standard
 arm/ti/clk/ti_divider_clock.c			standard

@@ -41,11 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <dev/fdt/simplebus.h>
 
-#include <dev/extres/clk/clk_div.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "ti_clk_div.h"
 #include "clock_common.h"
+#include "syscon_if.h"
 
 #if 0
 #define DPRINTF(dev, msg...) device_printf(dev, msg)
@@ -61,7 +62,7 @@ __FBSDID("$FreeBSD$");
 struct ti_divider_softc {
 	device_t		sc_dev;
 	bool			attach_done;
-	struct clk_div_def	div_def;
+	struct ti_clk_div_def	div_def;
 
 	struct clock_cell_info	clock_cell;
 	struct clkdom		*clkdom;
@@ -91,7 +92,7 @@ register_clk(struct ti_divider_softc *sc) {
 		return (ENXIO);
 	}
 
-	err = clknode_div_register(sc->clkdom, &sc->div_def);
+	err = ti_clknode_div_register(sc->clkdom, &sc->div_def);
 	if (err) {
 		DPRINTF(sc->sc_dev, "clknode_div_register failed %x\n", err);
 		return (ENXIO);
@@ -132,6 +133,9 @@ ti_divider_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	node = ofw_bus_get_node(dev);
+
+        /* Get syscon */
+        SYSCON_GET_HANDLE(dev, &sc->div_def.sysc);
 
 	/* Grab the content of reg properties */
 	OF_getencprop(node, "reg", &value, sizeof(value));
