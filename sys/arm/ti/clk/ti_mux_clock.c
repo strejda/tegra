@@ -43,11 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <dev/fdt/simplebus.h>
 
-#include <dev/extres/clk/clk_mux.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "ti_clk_mux.h"
 #include "clock_common.h"
+#include "syscon_if.h"
 
 #if 0
 #define DPRINTF(dev, msg...) device_printf(dev, msg)
@@ -64,7 +65,7 @@ struct ti_mux_softc {
 	device_t		sc_dev;
 	bool			attach_done;
 
-	struct clk_mux_def	mux_def;
+	struct ti_clk_mux_def	mux_def;
 	struct clock_cell_info	clock_cell;
 	struct clkdom 		*clkdom;
 };
@@ -107,7 +108,7 @@ register_clk(struct ti_mux_softc *sc) {
 		return ENXIO;
 	}
 
-	err = clknode_mux_register(sc->clkdom, &sc->mux_def);
+	err = ti_clknode_mux_register(sc->clkdom, &sc->mux_def);
 	if (err) {
 		DPRINTF(sc->sc_dev, "clknode_mux_register failed %x\n", err);
 		return ENXIO;
@@ -133,6 +134,9 @@ ti_mux_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	node = ofw_bus_get_node(dev);
+
+        /* Get syscon */
+        SYSCON_GET_HANDLE(dev, &sc->mux_def.sysc);
 
 	/* Grab the content of reg properties */
 	OF_getencprop(node, "reg", &value, sizeof(value));
