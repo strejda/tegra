@@ -41,11 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <dev/fdt/simplebus.h>
 
-#include <dev/extres/clk/clk_gate.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "ti_clk_gate.h"
 #include "clock_common.h"
+#include "syscon_if.h"
 
 #define DEBUG_GATE	0
 
@@ -65,7 +66,7 @@ struct ti_gate_softc {
 	bool			attach_done;
 	uint8_t			sc_type;
 
-	struct clk_gate_def	gate_def;
+	struct ti_clk_gate_def	gate_def;
 	struct clock_cell_info  clock_cell;
 	struct clkdom		*clkdom;
 };
@@ -117,7 +118,7 @@ register_clk(struct ti_gate_softc *sc) {
 		return ENXIO;
 	}
 
-	err = clknode_gate_register(sc->clkdom, &sc->gate_def);
+	err = ti_clknode_gate_register(sc->clkdom, &sc->gate_def);
 	if (err) {
 		DPRINTF(sc->sc_dev, "clknode_gate_register failed %x\n", err);
 		return ENXIO;
@@ -143,6 +144,9 @@ ti_gate_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	node = ofw_bus_get_node(dev);
+
+	/* Get syscon */
+	SYSCON_GET_HANDLE(dev, &sc->gate_def.sysc);
 
 	/* Get the compatible type */
 	sc->sc_type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
