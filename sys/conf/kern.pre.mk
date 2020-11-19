@@ -295,6 +295,21 @@ BNXT_CFLAGS=	-I$S/dev/bnxt/bnxt_en ${OFEDCFLAGS}
 BNXT_C_NOIMP=	${CC} -c -o ${.TARGET} ${BNXT_CFLAGS} ${WERROR}
 BNXT_C=		${BNXT_C_NOIMP} ${.IMPSRC}
 
+# DRM C flags.
+DRM_INCLUDES+=	-I${S}/dev/drm/core/include
+DRM_INCLUDES+=	-I${S}/dev/drm/core/include/uapi
+DRM_INCLUDES+=	-I${S}/dev/drm/drmkpi/include/
+
+DRM_CFLAGS=	${CFLAGS} ${DRM_INCLUDES}
+DRM_CFLAGS+=	-include ${S}/dev/drm/drmkpi/include/drm/drm_os_freebsd.h
+DRM_CFLAGS+=	'-DKBUILD_MODNAME="DRMv5.6"'
+DRM_CFLAGS+=	-Wno-cast-qual -Wno-pointer-arith -Wno-missing-prototypes
+# Complain about unsigned long long versus uint64_t, remove -Wformat for now
+.if ${MACHINE_CPUARCH} == "aarch64"
+DRM_CFLAGS+=	-Wno-format
+.endif
+DRM_C=		${CC} -c ${DRM_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
+
 # IP Filter
 IPFILTER_CFLAGS=	-I$S/netpfil/ipfilter
 IPFILTER_C=		${NORMAL_C} ${IPFILTER_CFLAGS}
