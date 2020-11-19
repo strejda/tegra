@@ -31,6 +31,9 @@ options 	LINUX_BOOT_ABI
 # Interrupt controller
 device		gic
 
+# PMU support (for CCNT).
+device		pmu
+
 # ARM Generic Timer
 device		generic_timer
 
@@ -135,5 +138,4 @@ options 	FDT			# Configure using FDT/DTB data
 device  	fdt_pinctrl
 
 # SoC-specific devices
-
-#device  	hwpmc
+device  	hwpmc
