@@ -141,7 +141,6 @@
 		regulator-always-on;
 	};
 
-#ifdef ROCKCHIP_REPOSITORY
 	vcc_sys: vsys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -150,7 +149,6 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
-#endif
 
 	vcc_flash: flash-regulator {
 		compatible = "regulator-fixed";
@@ -364,6 +362,8 @@
 };
 
 #ifdef ROCKCHIP_REPOSITORY
+/* HEVC is only in Rockchip repo */
+
 &hevc_service {
 	status = "okay";
 };
@@ -383,12 +383,11 @@
 		hp-ctl-gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
 		clock-names = "mclk";
 		clocks = <&cru SCLK_I2S0_OUT>;
-
 #ifdef ROCKCHIP_REPOSITORY
+/* i2s0_mclk is only in Rockchip repo */
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
 #endif
-
 		#sound-dai-cells = <0>;
 	};
 
@@ -454,14 +453,15 @@
 };
 
 #ifdef ROCKCHIP_REPOSITORY
+/* ISP is only in Rockchip repo */
 &isp {
 	status = "okay";
 };
-#endif
 
 &isp_mmu {
 	status = "okay";
 };
+#endif
 
 &rga {
 	status = "okay";
@@ -486,6 +486,7 @@
 };
 
 #ifdef ROCKCHIP_REPOSITORY
+/* ROCKCHIP_SUSPEND  is only in Rockchip repo */
 &rockchip_suspend {
 	status = "okay";
 };
@@ -502,6 +503,7 @@
 };
 
 #ifdef ROCKCHIP_REPOSITORY
+/* VPU_SERVICE is only in Rockchip repo */
 &vpu_service {
 	status = "okay";
 };
@@ -522,6 +524,8 @@
 };
 
 #ifdef ROCKCHIP_REPOSITORY
+/* USB_HOSTo_OHCI is only in Rockchip repo */
+
 &usb_host0_ohci {
 	status = "okay";
 };
@@ -676,18 +680,18 @@
 		 * high-speed mode on firefly board so bump up to 8ma.
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
-			rockchip,pins = <6 16 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
-					<6 17 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
-					<6 18 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
-					<6 19 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+			rockchip,pins = <6 16 1 &pcfg_pull_up_drv_8ma>,
+					<6 17 1 &pcfg_pull_up_drv_8ma>,
+					<6 18 1 &pcfg_pull_up_drv_8ma>,
+					<6 19 1 &pcfg_pull_up_drv_8ma>;
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 20 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <6 20 1 &pcfg_pull_none_drv_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
-			rockchip,pins = <6 21 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+			rockchip,pins = <6 21 1 &pcfg_pull_up_drv_8ma>;
 		};
 
 		sdmmc_pwr: sdmmc-pwr {

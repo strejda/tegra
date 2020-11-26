@@ -13,14 +13,12 @@
 	chosen {
 		bootargs = "earlyprintk console=ttyFIQ0 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
 #ifndef ROCKCHIP_REPOSITORY
+/* !!!! ^^^^ For FreeBSD console ^^^^ !!!! */
 		stdout-path = "serial2:115200n8";
-		/* !!!! ^^^^ For FreeBSD console ^^^^ !!!! */
 #endif
 	};
 
-#ifdef ROCKCHIP_REPOSITORY
 	/delete-node/ dmc@ff610000;
-#endif
 
 	dfi: dfi {
 		compatible = "rockchip,rk3288-dfi";
@@ -30,6 +28,7 @@
 	};
 
 #ifdef ROCKCHIP_REPOSITORY
+/* SCLK_DDRCLK exist only in Rockchip repo */
 	dmc: dmc {
 		compatible = "rockchip,rk3288-dmc";
 		devfreq-events = <&dfi>;
@@ -61,6 +60,7 @@
 		auto-freq-en = <0>;
 		status = "diasbled";
 	};
+#endif
 
 	dmc_opp_table: opp_table2 {
 		compatible = "operating-points-v2";
@@ -82,7 +82,6 @@
 			opp-microvolt = <1150000>;
 		};
 	};
-#endif
 
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";

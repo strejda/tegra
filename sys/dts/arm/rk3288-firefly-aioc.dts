@@ -301,7 +301,6 @@
 };
 
 &pinctrl {
-#ifndef ROCKCHIP_REPOSITORY
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <
 		/* Common for sleep and wake, but no owners */
@@ -311,7 +310,6 @@
 		/* Common for sleep and wake, but no owners */
 		&global_pwroff
  	>;
-#endif
 
 	act8846 {
 		pmic_vsel: pmic-vsel {
