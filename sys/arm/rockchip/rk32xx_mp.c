@@ -145,7 +145,7 @@ rk32xx_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 		    *reg, id);
 #endif
 	rv = OF_getprop(node, "enable-method", method, sizeof(method));
-	if (rv <= 0 || strcmp(method, "psci") == 0) {
+	if (rv > 0 && strcmp(method, "psci") == 0) {
 		psci_mask |= mask;
 		rv = psci_cpu_on(*reg, pmap_kextract((vm_offset_t)mpentry), id);
 		if (rv != PSCI_RETVAL_SUCCESS) {
