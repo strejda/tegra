@@ -98,6 +98,8 @@ ip6_tryforward(struct mbuf *m)
 	struct nhop_object *nh;
 	struct m_tag *fwd_tag;
 	struct ip6_hdr *ip6;
+	struct in6_addr ip6_addr_src;
+	struct in6_addr ip6_addr_dst;
 	struct ifnet *rcvif;
 	uint32_t plen;
 	int error;
@@ -106,14 +108,17 @@ ip6_tryforward(struct mbuf *m)
 	 * Fallback conditions to ip6_input for slow path processing.
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
+	bcopy(&ip6->ip6_src, &ip6_addr_src, sizeof(ip6_addr_src));
+	bcopy(&ip6->ip6_dst, &ip6_addr_dst, sizeof(ip6_addr_dst));
+	
 	if ((m->m_flags & (M_BCAST | M_MCAST)) != 0 ||
 	    ip6->ip6_nxt == IPPROTO_HOPOPTS ||
-	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) ||
-	    in6_localip(&ip6->ip6_dst))
+	    IN6_IS_ADDR_MULTICAST(&ip6_addr_dst) ||
+	    IN6_IS_ADDR_LINKLOCAL(&ip6_addr_dst) ||
+	    IN6_IS_ADDR_LINKLOCAL(&ip6_addr_src) ||
+	    IN6_IS_ADDR_UNSPECIFIED(&ip6_addr_dst) ||
+	    IN6_IS_ADDR_UNSPECIFIED(&ip6_addr_src) ||
+	    in6_localip(&ip6_addr_dst))
 		return (m);
 	/*
 	 * Check that the amount of data in the buffers
@@ -161,7 +166,7 @@ ip6_tryforward(struct mbuf *m)
 	bzero(&dst, sizeof(dst));
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(dst);
-	dst.sin6_addr = ip6->ip6_dst;
+	dst.sin6_addr = ip6_addr_dst;
 
 	/*
 	 * Incoming packet firewall processing.
@@ -184,6 +189,9 @@ ip6_tryforward(struct mbuf *m)
 		return (m);
 
 	ip6 = mtod(m, struct ip6_hdr *);
+	bcopy(&ip6->ip6_src, &ip6_addr_src, sizeof(ip6_addr_src));
+	bcopy(&ip6->ip6_dst, &ip6_addr_dst, sizeof(ip6_addr_dst));
+
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		/*
@@ -194,7 +202,7 @@ ip6_tryforward(struct mbuf *m)
 		m_tag_delete(m, fwd_tag);
 	} else {
 		/* Update dst since pfil could change it */
-		dst.sin6_addr = ip6->ip6_dst;
+		dst.sin6_addr = ip6_addr_dst;
 	}
 passin:
 	/*
@@ -252,19 +260,22 @@ passin:
 	 * Again. A packet filter could change the destination address.
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
+	bcopy(&ip6->ip6_src, &ip6_addr_src, sizeof(ip6_addr_src));
+	bcopy(&ip6->ip6_dst, &ip6_addr_dst, sizeof(ip6_addr_dst));
+	
 	if (m->m_flags & M_IP6_NEXTHOP)
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 	else
 		fwd_tag = NULL;
 
 	if (fwd_tag != NULL ||
-	    !IN6_ARE_ADDR_EQUAL(&dst.sin6_addr, &ip6->ip6_dst)) {
+	    !IN6_ARE_ADDR_EQUAL(&dst.sin6_addr, &ip6_addr_dst)) {
 		if (fwd_tag != NULL) {
 			bcopy((fwd_tag + 1), &dst, sizeof(dst));
 			m->m_flags &= ~M_IP6_NEXTHOP;
 			m_tag_delete(m, fwd_tag);
 		} else
-			dst.sin6_addr = ip6->ip6_dst;
+			dst.sin6_addr = ip6_addr_dst;
 		/*
 		 * Redo route lookup with new destination address
 		 */

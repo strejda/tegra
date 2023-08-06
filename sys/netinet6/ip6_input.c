@@ -541,6 +541,8 @@ ip6_input(struct mbuf *m)
 	struct ip6_hdr *ip6;
 	struct in6_ifaddr *ia;
 	struct ifnet *rcvif;
+	struct in6_addr ip6_addr_src;
+	struct in6_addr ip6_addr_dst;
 	u_int32_t plen;
 	u_int32_t rtalert = ~0;
 	int off = sizeof(struct ip6_hdr), nest;
@@ -626,6 +628,9 @@ ip6_input(struct mbuf *m)
 	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
+	bcopy(&ip6->ip6_src, &ip6_addr_src, sizeof(ip6_addr_src));
+	bcopy(&ip6->ip6_dst, &ip6_addr_dst, sizeof(ip6_addr_dst));
+
 	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
 		IP6STAT_INC(ip6s_badvers);
 		in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
@@ -639,7 +644,7 @@ ip6_input(struct mbuf *m)
 	 * Check against address spoofing/corruption.  The unspecified address
 	 * is checked further below.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
+	if (IN6_IS_ADDR_MULTICAST(&ip6_addr_src)) {
 		/*
 		 * XXX: "badscope" is not very suitable for a multicast source.
 		 */
@@ -647,7 +652,7 @@ ip6_input(struct mbuf *m)
 		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
-	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst) &&
+	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6_addr_dst) &&
 	    !(m->m_flags & M_LOOP)) {
 		/*
 		 * In this case, the packet should come from the loopback
@@ -659,8 +664,8 @@ ip6_input(struct mbuf *m)
 		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
-	    IPV6_ADDR_MC_SCOPE(&ip6->ip6_dst) == 0) {
+	if (IN6_IS_ADDR_MULTICAST(&ip6_addr_dst) &&
+	    IPV6_ADDR_MC_SCOPE(&ip6_addr_dst) == 0) {
 		/*
 		 * RFC4291 2.7:
 		 * Nodes must not originate a packet to a multicast address
@@ -682,8 +687,8 @@ ip6_input(struct mbuf *m)
 	 * v4mapped on the wire, so it makes sense for us to keep rejecting
 	 * any such packets.
 	 */
-	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
+	if (IN6_IS_ADDR_V4MAPPED(&ip6_addr_src) ||
+	    IN6_IS_ADDR_V4MAPPED(&ip6_addr_dst)) {
 		IP6STAT_INC(ip6s_badscope);
 		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
@@ -696,8 +701,8 @@ ip6_input(struct mbuf *m)
 	 * stronger than RFC1933).  We may want to re-enable it if mech-xx
 	 * is revised to forbid relaying case.
 	 */
-	if (IN6_IS_ADDR_V4COMPAT(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_V4COMPAT(&ip6->ip6_dst)) {
+	if (IN6_IS_ADDR_V4COMPAT(&ip6_addr_src) ||
+	    IN6_IS_ADDR_V4COMPAT(&iip6_addr_dst)) {
 		IP6STAT_INC(ip6s_badscope);
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
 		goto bad;
@@ -746,12 +751,16 @@ ip6_input(struct mbuf *m)
 	if (!PFIL_HOOKED_IN(V_inet6_pfil_head))
 		goto passin;
 
-	odst = ip6->ip6_dst;
+	odst = ip6_addr_dst;
 	if (pfil_mbuf_in(V_inet6_pfil_head, &m, m->m_pkthdr.rcvif,
 	    NULL) != PFIL_PASS)
 		return;
+
 	ip6 = mtod(m, struct ip6_hdr *);
-	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
+	bcopy(&ip6->ip6_src, &ip6_addr_src, sizeof(ip6_addr_src));
+	bcopy(&ip6->ip6_dst, &ip6_addr_dst, sizeof(ip6_addr_dst));
+
+	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6_addr_dst);
 	if ((m->m_flags & (M_IP6_NEXTHOP | M_FASTFWD_OURS)) == M_IP6_NEXTHOP &&
 	    m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
 		/*
@@ -785,12 +794,12 @@ passin:
 	 * dst are the loopback address and the receiving interface
 	 * is not loopback.
 	 */
-	if (in6_clearscope(&ip6->ip6_src) || in6_clearscope(&ip6->ip6_dst)) {
+	if (in6_clearscope(&ip6_addr_src) || in6_clearscope(&ip6_addr_dst)) {
 		IP6STAT_INC(ip6s_badscope); /* XXX */
 		goto bad;
 	}
-	if (in6_setscope(&ip6->ip6_src, rcvif, NULL) ||
-	    in6_setscope(&ip6->ip6_dst, rcvif, NULL)) {
+	if (in6_setscope(&ip6_addr_src, rcvif, NULL) ||
+	    in6_setscope(&ip6_addr_dst, rcvif, NULL)) {
 		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
@@ -803,7 +812,7 @@ passin:
 	 * Multicast check. Assume packet is for us to avoid
 	 * prematurely taking locks.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+	if (IN6_IS_ADDR_MULTICAST(&ip6_addr_dst)) {
 		ours = 1;
 		in6_ifstat_inc(rcvif, ifs6_in_mcast);
 		goto hbhcheck;
@@ -813,7 +822,7 @@ passin:
 	 * XXX: For now we keep link-local IPv6 addresses with embedded
 	 *      scope zone id, therefore we use zero zoneid here.
 	 */
-	ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
+	ia = in6ifa_ifwithaddr(&ip6_addr_dst, 0 /* XXX */, false);
 	if (ia != NULL) {
 		if (ia->ia6_flags & IN6_IFF_NOTREADY) {
 			char ip6bufs[INET6_ADDRSTRLEN];
@@ -821,12 +830,12 @@ passin:
 			/* address is not ready, so discard the packet. */
 			nd6log((LOG_INFO,
 			    "ip6_input: packet to an unready address %s->%s\n",
-			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
-			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
+			    ip6_sprintf(ip6bufs, &ip6_addr_src),
+			    ip6_sprintf(ip6bufd, &ip6_addr_dst)));
 			goto bad;
 		}
 		if (V_ip6_sav && !(m->m_flags & M_LOOP) &&
-		    __predict_false(in6_localip_fib(&ip6->ip6_src,
+		    __predict_false(in6_localip_fib(&ip6_addr_src,
 			    rcvif->if_fib))) {
 			IP6STAT_INC(ip6s_badscope); /* XXX */
 			goto bad;
@@ -890,7 +899,7 @@ passin:
 	 * Forward if desirable.
 	 */
 	if (V_ip6_mrouter &&
-	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+	    IN6_IS_ADDR_MULTICAST(&ip6_addr_dst)) {
 		/*
 		 * If we are acting as a multicast router, all
 		 * incoming multicast packets are passed to the
