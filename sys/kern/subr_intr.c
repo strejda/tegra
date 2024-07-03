@@ -398,7 +398,7 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		int error;
-		error = isrc->isrc_filter(isrc->isrc_arg, tf);
+		error = isrc->isrc_filter(isrc->isrc_arg);
 		PIC_POST_FILTER(isrc->isrc_dev, isrc);
 		if (error == FILTER_HANDLED)
 			return (0);
