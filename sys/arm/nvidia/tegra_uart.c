@@ -190,14 +190,14 @@ tegra_uart_probe(device_t dev)
 	if (cd->ocd_data == 0)
 		return (ENXIO);
 	sc->ns8250_base.base.sc_class = (struct uart_class *)cd->ocd_data;
-	rv = hwreset_get_by_ofw_name(dev, 0, "serial", &sc->reset);
+	rv = hwreset_get_by_ofw_idx(dev, 0, 0, &sc->reset);
 	if (rv != 0) {
-		device_printf(dev, "Cannot get 'serial' reset\n");
+		device_printf(dev, "Cannot get UART reset\n");
 		return (ENXIO);
 	}
 	rv = hwreset_deassert(sc->reset);
 	if (rv != 0) {
-		device_printf(dev, "Cannot unreset 'serial' reset\n");
+		device_printf(dev, "Cannot unreset UART' reset\n");
 		return (ENXIO);
 	}
 	node = ofw_bus_get_node(dev);
@@ -214,7 +214,7 @@ tegra_uart_probe(device_t dev)
 	}
 	rv = clk_get_freq(sc->clk, &freq);
 	if (rv != 0) {
-		device_printf(dev, "Cannot enable UART clock: %d\n", rv);
+		device_printf(dev, "Cannot get UART clock frequency: %d\n", rv);
 		return (ENXIO);
 	}
 	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0, 0));
