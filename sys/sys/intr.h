@@ -65,10 +65,9 @@ struct intr_map_data_msi {
 
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
-typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
-#else
-typedef int intr_irq_filter_t(void *arg);
 #endif
+
+typedef int intr_irq_filter_t(void *arg);
 typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
