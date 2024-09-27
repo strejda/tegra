@@ -286,7 +286,8 @@ undefinedinstruction(struct trapframe *frame)
 
 			/* Coprocessor, Advanced SIMD and Floating-point */
 			if (THUMB_COPROC_INSN(fault_instruction))
-				coprocessor = THUMB_COPROC(fault_instruction);
+//				coprocessor = THUMB_COPROC(fault_instruction);
+				coprocessor = COPROC_VFP; /* SIMD */
 			else {
 				/* Advanced SIMD load/store */
 				if (THUMB_VFP_INSN(fault_instruction))
