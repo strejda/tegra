@@ -53,6 +53,7 @@
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/sdhci/sdhci.h>
@@ -102,8 +103,8 @@ struct tegra_sdhci_softc {
 	struct resource *	mem_res;
 	struct resource *	irq_res;
 	void *			intr_cookie;
-	u_int			quirks;	/* Chip specific quirks */
-	u_int			caps;	/* If we override SDHCI_CAPABILITIES */
+	struct mmc_helper	fdt_helper;
+
 	uint32_t		max_clk; /* Max possible freq */
 	clk_t			clk;
 	hwreset_t 		reset;
@@ -149,7 +150,8 @@ tegra_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	sc = device_get_softc(dev);
 	val32 = bus_read_4(sc->mem_res, off);
 	/* Force the card-present state if necessary. */
-	if (off == SDHCI_PRESENT_STATE && sc->force_card_present)
+	if (off == SDHCI_PRESENT_STATE &&
+	    sc->fdt_helper.props & MMC_PROP_NON_REMOVABLE)
 		val32 |= SDHCI_CARD_PRESENT;
 	return (val32);
 }
@@ -232,12 +234,8 @@ tegra_sdhci_get_card_present(device_t dev, struct sdhci_slot *slot)
 static int
 tegra_sdhci_probe(device_t dev)
 {
-	struct tegra_sdhci_softc *sc;
-	phandle_t node;
-	pcell_t cid;
 	const struct ofw_compat_data *cd;
 
-	sc = device_get_softc(dev);
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -245,14 +243,7 @@ tegra_sdhci_probe(device_t dev)
 	if (cd->ocd_data == 0)
 		return (ENXIO);
 
-	node = ofw_bus_get_node(dev);
 	device_set_desc(dev, "Tegra SDHCI controller");
-
-	/* Allow dts to patch quirks, slots, and max-frequency. */
-	if ((OF_getencprop(node, "quirks", &cid, sizeof(cid))) > 0)
-		sc->quirks = cid;
-	if ((OF_getencprop(node, "max-frequency", &cid, sizeof(cid))) > 0)
-		sc->max_clk = cid;
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -263,7 +254,7 @@ tegra_sdhci_attach(device_t dev)
 	struct tegra_sdhci_softc *sc;
 	int rid, rv;
 	uint64_t freq;
-	phandle_t node, prop;
+	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -337,41 +328,30 @@ tegra_sdhci_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, " Base MMC clock: %jd\n", (uintmax_t)freq);
 
-	/* Fill slot information. */
-	sc->max_clk = (int)freq;
-	sc->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
+	/* Setup default max_freq first */
+	sc->slot.max_clk = (int)freq;
+
+	/* Parse slot information. */
+	rv = mmc_fdt_parse(dev, node, &sc->fdt_helper, &sc->slot.host);
+	if (rv != 0 ) {
+		device_printf(dev, "Cannot parse FDT properties\n");
+		goto fail;
+	}
+
+	sc->slot.quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 	    SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 	    SDHCI_QUIRK_MISSING_CAPS;
 
-	/* Limit real slot capabilities. */
-	sc->caps = RD4(sc, SDHCI_CAPABILITIES);
-	if (OF_getencprop(node, "bus-width", &prop, sizeof(prop)) > 0) {
-		sc->caps &= ~(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA);
-		switch (prop) {
-		case 8:
-			sc->caps |= MMC_CAP_8_BIT_DATA;
-			/* FALLTHROUGH */
-		case 4:
-			sc->caps |= MMC_CAP_4_BIT_DATA;
-			break;
-		case 1:
-			break;
-		default:
-			device_printf(dev, "Bad bus-width value %u\n", prop);
-			break;
-		}
-	}
-	if (OF_hasprop(node, "non-removable"))
-		sc->force_card_present = 1;
+	sc->slot.caps = tegra_sdhci_read_4(dev, &sc->slot,
+	    SDHCI_CAPABILITIES) & ~(SDHCI_CAN_DO_SUSPEND);
+	sc->slot.caps2 = tegra_sdhci_read_4(dev, &sc->slot,
+	    SDHCI_CAPABILITIES2);
+
 	/*
 	 * Clear clock field, so SDHCI driver uses supplied frequency.
 	 * in sc->slot.max_clk
 	 */
-	sc->caps &= ~SDHCI_CLOCK_V3_BASE_MASK;
-
-	sc->slot.quirks = sc->quirks;
-	sc->slot.max_clk = sc->max_clk;
-	sc->slot.caps = sc->caps;
+	sc->slot.caps &= ~SDHCI_CLOCK_V3_BASE_MASK;
 
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, tegra_sdhci_intr, sc, &sc->intr_cookie)) {
@@ -448,6 +428,7 @@ static device_method_t tegra_sdhci_methods[] = {
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(sdhci_set_uhs_timing, sdhci_generic_set_uhs_timing),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
 	DEVMETHOD(mmcbr_get_ro,		tegra_sdhci_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
