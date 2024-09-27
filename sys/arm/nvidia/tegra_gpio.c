@@ -447,13 +447,33 @@ tegra_gpio_pic_attach(struct tegra_gpio_softc *sc)
 		error = intr_isrc_register(&sc->isrcs[irq].isrc,
 		    sc->dev, 0, "%s,%u", name, irq);
 		if (error != 0)
-			return (error); /* XXX deregister ISRCs */
-	}
-	if (intr_pic_register(sc->dev,
-	    OF_xref_from_node(ofw_bus_get_node(sc->dev))) == NULL)
-		return (ENXIO);
+			goto err;
+
+
+		if (intr_isrc_deregister(&sc->isrcs[irq].isrc) != 0)
+			device_printf(sc->dev,
+			    "Cannot deregister interrupt source: %s, %u",
+			    device_get_nameunit(sc->dev), irq);
+
+		error = intr_isrc_register(&sc->isrcs[irq].isrc, sc->dev, 0,
+		"%s,%u", name, irq); if (error != 0) goto err; } if
+		(intr_pic_register(sc->dev,
+		OF_xref_from_node(ofw_bus_get_node(sc->dev))) == NULL) return
+		(ENXIO);
 
 	return (0);
+
+err:
+	for(;;) {
+		if (intr_isrc_deregister(&sc->isrcs[irq].isrc) != 0)
+			device_printf(sc->dev,
+			    "Cannot deregister interrupt source: %s, %u",
+			    device_get_nameunit(sc->dev), irq);
+		if (irq == 0)
+			break;
+		irq--;
+	}
+	return(error);
 }
 
 static int
